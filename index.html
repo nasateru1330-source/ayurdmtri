@@ -64,20 +64,42 @@
                     <i class="fa-solid fa-users-rectangle text-3xl"></i>
                 </div>
                 <h1 class="text-2xl font-bold text-slate-900 mb-2">部活動活動記録アプリ</h1>
-                <p class="text-slate-600 text-sm mb-8 leading-relaxed">
+                <p class="text-slate-600 text-sm mb-6 leading-relaxed">
                     日々の部活動の活動内容、参加人数、反省・気づきをデータ化・視覚化。
                     ログインして部活動の記録を開始しましょう。
                 </p>
                 
-                <button id="googleLoginBtn" class="w-full bg-white hover:bg-slate-50 text-slate-700 font-semibold py-3.5 px-4 border border-slate-300 rounded-xl shadow-sm hover:shadow transition-all flex items-center justify-center space-x-3 active:scale-[0.99]">
-                    <svg class="w-5 h-5" viewBox="0 0 24 24">
-                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
-                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
-                    </svg>
-                    <span>Googleアカウントでログイン</span>
-                </button>
+                <!-- 承認されていないドメインの警告アラート (初期非表示) -->
+                <div id="domainWarning" class="hidden text-left bg-amber-50 border border-amber-300 text-amber-900 p-3.5 rounded-xl text-xs mb-5 space-y-2">
+                    <div class="font-bold flex items-center text-amber-700">
+                        <i class="fa-solid fa-triangle-exclamation mr-1.5 text-base"></i>
+                        <span>ドメイン未承認エラー (unauthorized-domain)</span>
+                    </div>
+                    <p class="leading-relaxed">
+                        現在のドメイン (<code id="currentDomainText" class="bg-amber-100 px-1 py-0.5 rounded font-mono text-[11px]">--</code>) が Firebase Console の承認済みドメインに未登録です。
+                    </p>
+                    <p class="text-[11px] text-amber-800">
+                        ※Firebase Console ➔ Authentication ➔ Settings ➔ 承認済みドメイン に追加することでGoogleログインが有効化されます。
+                    </p>
+                </div>
+
+                <div class="space-y-3">
+                    <button id="googleLoginBtn" class="w-full bg-white hover:bg-slate-50 text-slate-700 font-semibold py-3.5 px-4 border border-slate-300 rounded-xl shadow-sm hover:shadow transition-all flex items-center justify-center space-x-3 active:scale-[0.99]">
+                        <svg class="w-5 h-5" viewBox="0 0 24 24">
+                            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+                        </svg>
+                        <span>Googleアカウントでログイン</span>
+                    </button>
+
+                    <!-- 緊急テストログインボタン (エラー時に使えるフォールバック) -->
+                    <button id="anonymousLoginBtn" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-2.5 px-4 border border-slate-200 rounded-xl text-xs transition-all flex items-center justify-center space-x-2">
+                        <i class="fa-solid fa-user-gear"></i>
+                        <span>テスト用ゲストログイン (ドメイン未設定時の検証用)</span>
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -253,6 +275,7 @@
         import { 
             getAuth, 
             signInWithPopup, 
+            signInAnonymously,
             GoogleAuthProvider, 
             onAuthStateChanged, 
             signOut 
@@ -267,7 +290,7 @@
             serverTimestamp 
         } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // 実技試験で指定された Firebase コンフィグを埋め込み
+        // 実技試験で指定された Firebase コンフィグ
         const firebaseConfig = {
             apiKey: "AIzaSyDrNwdD58NnnzLiOfoOkq46Co37rxB7Xrk",
             authDomain: "bukatsu-d0312.firebaseapp.com",
@@ -298,6 +321,9 @@
         const userName = document.getElementById('userName');
         const userAvatar = document.getElementById('userAvatar');
         const googleLoginBtn = document.getElementById('googleLoginBtn');
+        const anonymousLoginBtn = document.getElementById('anonymousLoginBtn');
+        const domainWarning = document.getElementById('domainWarning');
+        const currentDomainText = document.getElementById('currentDomainText');
         const logoutBtn = document.getElementById('logoutBtn');
 
         const recordForm = document.getElementById('recordForm');
@@ -326,8 +352,8 @@
                 appDashboard.classList.remove('hidden');
                 userInfoHeader.classList.remove('hidden');
                 
-                userName.textContent = user.displayName || user.email || "ユーザー";
-                userAvatar.src = user.photoURL || `https://placehold.co/100x100/6366f1/ffffff?text=${encodeURIComponent((user.displayName || 'U').charAt(0))}`;
+                userName.textContent = user.displayName || (user.isAnonymous ? "ゲストユーザー" : user.email) || "ユーザー";
+                userAvatar.src = user.photoURL || `https://placehold.co/100x100/6366f1/ffffff?text=${encodeURIComponent((userName.textContent || 'U').charAt(0))}`;
 
                 subscribeToRecords();
             } else {
@@ -350,7 +376,25 @@
                 showToast("Googleアカウントでログインしました！");
             } catch (error) {
                 console.error("Google Login Error:", error);
-                alert("Googleログインに失敗しました。ポップアップブロックやドメイン承認をご確認ください。");
+                
+                // unauthorized-domain のエラーハンドリング
+                if (error.code === 'auth/unauthorized-domain') {
+                    currentDomainText.textContent = window.location.hostname || '現在のドメイン';
+                    domainWarning.classList.remove('hidden');
+                } else {
+                    alert("ログインエラーが発生しました: " + error.message);
+                }
+            }
+        });
+
+        // Anonymous/Test Login Action (Fallback for testing before domain whitelisting)
+        anonymousLoginBtn.addEventListener('click', async () => {
+            try {
+                await signInAnonymously(auth);
+                showToast("テスト用ゲストとしてログインしました");
+            } catch (error) {
+                console.error("Anonymous Login Error:", error);
+                alert("テストログインに失敗しました: " + error.message);
             }
         });
 
